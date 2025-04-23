@@ -1,3 +1,4 @@
+# File: C:/Users/holistech/Documents/GitHub/qgis_weather_dock/weather_dock.py
 # -*- coding: utf-8 -*-
 """
 /***************************************************************************
@@ -7,10 +8,10 @@
 """
 
 import os
-from PyQt5.QtCore import QSettings, QTranslator, QCoreApplication, Qt
+from PyQt5.QtCore import QSettings, QTranslator, QCoreApplication, Qt, QTimer
 from PyQt5.QtGui import QIcon
 from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QAction, QMenu  # Added QMenu import
+from PyQt5.QtWidgets import QAction, QMenu
 from qgis.core import QgsProject, QgsCoordinateTransform, QgsCoordinateReferenceSystem
 from .weather_dock_widget import WeatherDockWidget
 from .settings_dialog import SettingsDialog
@@ -18,6 +19,8 @@ from .settings_dialog import SettingsDialog
 
 class WeatherDock:
     """QGIS Plugin Implementation."""
+
+    UPDATE_DELAY_MS = 3000  # Delay in milliseconds (3 seconds)
 
     def __init__(self, iface):
         """Constructor."""
@@ -37,6 +40,11 @@ class WeatherDock:
         self.menu = self.tr(u'&Weather Dock')
         self.first_start = None
 
+        self.update_timer = QTimer()
+        self.update_timer.setInterval(self.UPDATE_DELAY_MS)
+        self.update_timer.setSingleShot(True)  # Important: Fire only once after delay
+        self.update_timer.timeout.connect(self.perform_delayed_update)  # Connect timeout to actual update
+
     def tr(self, message):
         """Get the translation for a string using Qt translation API."""
         return QCoreApplication.translate('WeatherDock', message)
@@ -53,8 +61,7 @@ class WeatherDock:
             whats_this=None,
             parent=None):
         """Add a toolbar icon/menu action."""
-        # --- MODIFIED: Allow adding only to menu ---
-        icon = QIcon(icon_path) if icon_path else QIcon()  # Allow no icon
+        icon = QIcon(icon_path) if icon_path else QIcon()
         action = QAction(icon, text, parent)
         action.triggered.connect(callback)
         action.setEnabled(enabled_flag)
@@ -77,70 +84,83 @@ class WeatherDock:
         icon_path = os.path.join(self.plugin_dir, 'icon.svg')
         self.add_action(
             icon_path,
-            text=self.tr(u'Show Weather Dock'),  # Renamed for clarity
+            text=self.tr(u'Show Weather Dock'),
             callback=self.run,
             parent=self.iface.mainWindow(),
-            add_to_toolbar=True,  # Explicitly add to toolbar
-            add_to_menu=True  # Explicitly add to menu
+            add_to_toolbar=True,
+            add_to_menu=True
         )
 
         # --- Settings Action (Menu Only) ---
         self.add_action(
-            None,  # No icon for settings menu item
+            None,
             text=self.tr(u'Settings...'),
             callback=self.show_settings_dialog,
             parent=self.iface.mainWindow(),
-            add_to_toolbar=False,  # Do not add to toolbar
-            add_to_menu=True  # Add only to menu
+            add_to_toolbar=False,
+            add_to_menu=True
         )
 
         self.first_start = True
-        self.iface.mapCanvas().extentsChanged.connect(self.update_weather)
+        # Connect extentsChanged to schedule_update instead of directly updating
+        self.iface.mapCanvas().extentsChanged.connect(self.schedule_update)
 
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
+        # --- STOP TIMER ---
+        self.update_timer.stop()
+
         for action in self.actions:
             self.iface.removePluginMenu(self.menu, action)
-            if action.icon():  # Only remove toolbar icon if it exists
+            if action.icon():
                 self.iface.removeToolBarIcon(action)
 
-        try:  # Use try-except for disconnect robustness
-            self.iface.mapCanvas().extentsChanged.disconnect(self.update_weather)
+        try:
+            # --- DISCONNECT CORRECT SLOT ---
+            self.iface.mapCanvas().extentsChanged.disconnect(self.schedule_update)
         except TypeError:
-            pass  # Signal was not connected
+            pass
 
         if self.dock_widget:
             self.iface.removeDockWidget(self.dock_widget)
             self.dock_widget = None
 
     def run(self):
-        """Run method that shows the dock widget and updates weather."""
+        """Run method that shows the dock widget and triggers initial weather update."""
         if self.first_start or self.dock_widget is None:
             self.first_start = False
             self.dock_widget = WeatherDockWidget(self.iface)
-            # Ensure dock widget is created before adding it
             self.iface.addDockWidget(Qt.RightDockWidgetArea, self.dock_widget)
         else:
-            # If dock exists but was closed, recreate it
             if not self.iface.mainWindow().findChild(WeatherDockWidget):
                 self.dock_widget = WeatherDockWidget(self.iface)
                 self.iface.addDockWidget(Qt.RightDockWidgetArea, self.dock_widget)
 
         self.dock_widget.show()
-        # Ensure focus or raise if already visible
         self.dock_widget.raise_()
-        self.update_weather()
+
+        # --- Trigger initial update immediately ---
+        self.update_timer.stop()  # Cancel any pending timer from previous interactions
+        self.perform_delayed_update()  # Call the actual update method directly
 
     def show_settings_dialog(self):
         """Create and show the settings dialog."""
         dialog = SettingsDialog(self.iface.mainWindow())
-        # If dialog is accepted (OK clicked), trigger a weather update
-        # to reflect the new settings immediately.
         if dialog.exec_() == QtWidgets.QDialog.Accepted:
-            self.update_weather()
+            # --- Trigger immediate update after settings change ---
+            self.update_timer.stop()  # Cancel any pending delayed update
+            self.perform_delayed_update()  # Call the actual update method directly
 
-    def update_weather(self):
-        """Update the weather data for the current map extent"""
+    def schedule_update(self):
+        """Restarts the timer when the map extent changes."""
+        # Don't need to check if widget is visible here,
+        # the check happens in perform_delayed_update.
+        # Simply restart the timer whenever the map moves.
+        self.update_timer.start()  # Restarts the timer if already running
+
+    def perform_delayed_update(self):
+        """Update the weather data - called after the timer delay."""
         # Only update if the dock widget exists and is visible
         if self.dock_widget and self.dock_widget.isVisible():
+            # Call the update method on the widget instance
             self.dock_widget.update_weather()

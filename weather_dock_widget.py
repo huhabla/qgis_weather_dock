@@ -91,10 +91,6 @@ class WeatherDockWidget(QtWidgets.QDockWidget):
         # self.fetch_thread.finished.connect(self.on_fetch_finished)
         self.fetch_thread.start()
 
-    # Optional: Slot to clear the thread reference when done
-    # def on_fetch_finished(self):
-    #     self.fetch_thread = None
-
     def on_weather_data_received(self, weather_data):
         """Handle received weather data."""
         self.display_weather_html(weather_data)
@@ -124,9 +120,6 @@ class WeatherDockWidget(QtWidgets.QDockWidget):
         formatted_time = "Unknown Time"
         if current_time_str:
             try:
-                # Parse as naive, assume UTC, convert to local
-                # utc_dt = datetime.fromisoformat(current_time_str).replace(tzinfo=timezone.utc)
-                # local_dt = utc_dt.astimezone(None) # Convert to system's local timezone
                 local_dt = datetime.now()
                 formatted_time = local_dt.strftime("%A, %B %d, %Y %H:%M %Z%z") # Include timezone info
             except (ValueError, TypeError):
@@ -175,11 +168,9 @@ class WeatherDockWidget(QtWidgets.QDockWidget):
         else:
             forecast_table_rows = '<tr><td colspan="4" style="text-align: center;">No hourly forecast data available.</td></tr>'
 
-        # --- Get forecast days for title ---
         forecast_days = SettingsDialog.get_forecast_days()
         forecast_title = f"Hourly Forecast ({forecast_days} Day{'s' if forecast_days > 1 else ''})"
 
-        # --- Generate final HTML ---
         html = f"""
         <!DOCTYPE html>
         <html>
@@ -231,7 +222,8 @@ class WeatherDockWidget(QtWidgets.QDockWidget):
                        </td>
                      </tr></table>
                 </div>
-
+                <p></p>
+                <p></p>
                 <div class="forecast-container">
                     <!-- Use dynamic title -->
                     <h3>{forecast_title}</h3>
@@ -267,7 +259,6 @@ class FetchWeatherThread(QtCore.QThread):
     weatherDataReceived = QtCore.pyqtSignal(dict)
     weatherDataError = QtCore.pyqtSignal(str)
 
-    # --- MODIFIED CONSTRUCTOR ---
     def __init__(self, latitude, longitude, forecast_days):
         """Constructor."""
         super(FetchWeatherThread, self).__init__()
