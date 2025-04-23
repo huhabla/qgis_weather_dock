@@ -1,0 +1,27 @@
+# This file contains metadata for your plugin
+
+[general]
+name=Weather Dock
+qgisMinimumVersion=3.1
+description=Display current weather for the center of the map canvas
+version=0.1
+author=Soeren Gebbert
+email=soerengebbert@holistech.de
+
+about=This plugin displays current weather information for the center of the current map extent using the open-meteo.com API.
+
+tracker=https://github.com/huhabla/qgis_weather_dock/issues
+repository=https://github.com/huhabla/qgis_weather_dock
+# End of mandatory metadata
+
+# Category of the plugin: Raster, Vector, Database or Web
+category=Web
+
+# Tags are comma separated with spaces allowed
+tags=weather, dock, api, open-meteo
+
+homepage=https://github.com/yourusername/weather-dock
+icon=icon.svg
+
+# experimental flag
+experimental=False
