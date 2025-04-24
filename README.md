@@ -2,6 +2,8 @@
 
 A QGIS plugin that displays current weather conditions and hourly forecasts for the center of the map canvas, using your local time zone.
 
+![Screenshot](screenshot.png)
+
 ## Features
 
 - Displays current temperature and wind speed.
