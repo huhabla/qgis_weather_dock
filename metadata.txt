@@ -20,7 +20,7 @@ category=Web
 # Tags are comma separated with spaces allowed
 tags=weather, dock, api, open-meteo
 
-homepage=https://github.com/yourusername/weather-dock
+homepage=https://github.com/huhabla/qgis_weather_dock
 icon=icon.svg
 
 # experimental flag
